@@ -1,10 +1,12 @@
 // Constantes Base
 const SALARIO = 2884.0;
 
-// Gastos Estritamente Fixos (Não mudam de valor)
-const VALOR_INTERNET = 139.51; // Casa + Celular
+// Gastos Estritamente Fixos - Valores Totais/Cheios
+const VALOR_INTERNET = 89.85; // Internet Casa (Digital Net)
+const VALOR_CELULAR = 49.99; // Plano de Celular (Claro Flex)
 const VALOR_SEGURO = 302.9; // Seguro Carro
-const VALOR_AP = 542.57; // Financiamento / AP (Sua parte)
+const VALOR_TOTAL_AP = 1085.14; // Valor CHEIO do Financiamento/AP (Sua parte será 50%)
+const VALOR_TOTAL_CONDOMINIO = 660.0; // Valor CHEIO do Condomínio (Sua parte será 50%)
 
 // Projeções Estimadas de Gastos Variáveis (Início do Mês)
 const ESTIMATIVA_AGUA = 115.0;
@@ -123,7 +125,7 @@ async function carregarTransacoes() {
       });
     }
 
-    // 1. Identifica se a Água ou a Luz foram pagas no extrato deste mês
+    // 1. Identifica se as contas fixas/estimadas foram pagas no extrato deste mês
     const pagoAgua = transacoes.find((t) => {
       const localUpper = (t.local || '').toUpperCase();
       const catUpper = (t.categoria || '').toUpperCase();
@@ -140,33 +142,155 @@ async function carregarTransacoes() {
       return localUpper.includes('ENERGISA') || catUpper === 'LUZ';
     });
 
-    // 2. Define o valor a exibir na Projeção/Tabela
-    // Se a conta já foi paga, zeramos a projeção para não duplicar no cálculo total!
+    const pagamentosInternet = transacoes.filter((t) => {
+      const localUpper = (t.local || '').toUpperCase();
+      const catUpper = (t.categoria || '').toUpperCase();
+      return (
+        localUpper.includes('DIGITAL NET') ||
+        localUpper.includes('INTERNET') ||
+        localUpper.includes('FIBRA') ||
+        catUpper === 'INTERNET'
+      );
+    });
+
+    const pagoCelular = transacoes.find((t) => {
+      const localUpper = (t.local || '').toUpperCase();
+      const catUpper = (t.categoria || '').toUpperCase();
+      return (
+        localUpper.includes('CLARO FLEX') ||
+        localUpper.includes('CLARO') ||
+        localUpper.includes('CELULAR') ||
+        localUpper.includes('TIM') ||
+        localUpper.includes('VIVO') ||
+        catUpper === 'CELULAR'
+      );
+    });
+
+    const pagoSeguro = transacoes.find((t) => {
+      const localUpper = (t.local || '').toUpperCase();
+      const catUpper = (t.categoria || '').toUpperCase();
+      return (
+        localUpper.includes('COLECIONADORES') ||
+        localUpper.includes('ASSOCIACAO') ||
+        catUpper === 'SEGURO'
+      );
+    });
+
+    const pagoAP = transacoes.find((t) => {
+      const localUpper = (t.local || '').toUpperCase();
+      const catUpper = (t.categoria || '').toUpperCase();
+      return (
+        localUpper.includes('CAIXA') ||
+        localUpper.includes('HABITACAO') ||
+        localUpper.includes('FINANCIAMENTO') ||
+        catUpper === 'AP' ||
+        catUpper === 'FINANCIAMENTO'
+      );
+    });
+
+    const pagoCondominio = transacoes.find((t) => {
+      const localUpper = (t.local || '').toUpperCase();
+      const catUpper = (t.categoria || '').toUpperCase();
+      return (
+        localUpper.includes('AGF') ||
+        localUpper.includes('GARANTIDORA') ||
+        localUpper.includes('CONDOMINIO') ||
+        catUpper === 'CONDOMÍNIO'
+      );
+    });
+
+    // 2. Define os valores a exibir e desacopla a estimativa/projeção pendente
+
+    // ÁGUA
     let valorAguaExibir = ESTIMATIVA_AGUA;
     let projecaoAguaPendente = ESTIMATIVA_AGUA;
     if (pagoAgua) {
       valorAguaExibir = parseFloat(pagoAgua.valor);
-      projecaoAguaPendente = 0; // Desliga a estimativa do total pendente
+      projecaoAguaPendente = 0;
     }
 
+    // LUZ
     let valorLuzExibir = ESTIMATIVA_LUZ;
     let projecaoLuzPendente = ESTIMATIVA_LUZ;
     if (pagoLuz) {
       valorLuzExibir = parseFloat(pagoLuz.valor);
-      projecaoLuzPendente = 0; // Desliga a estimativa do total pendente
+      projecaoLuzPendente = 0;
     }
 
-    // 3. Atualiza os textos da Tabela de Resumo com tag de (Pago) ou (Estimado)
+    // INTERNET
+    let valorInternetExibir = VALOR_INTERNET;
+    let projecaoInternetPendente = VALOR_INTERNET;
+    if (pagamentosInternet.length > 0) {
+      valorInternetExibir = pagamentosInternet.reduce(
+        (acc, curr) => acc + parseFloat(curr.valor),
+        0
+      );
+      projecaoInternetPendente = 0;
+    }
+
+    // CELULAR
+    let valorCelularExibir = VALOR_CELULAR;
+    let projecaoCelularPendente = VALOR_CELULAR;
+    if (pagoCelular) {
+      valorCelularExibir = parseFloat(pagoCelular.valor);
+      projecaoCelularPendente = 0;
+    }
+
+    // SEGURO
+    let valorSeguroExibir = VALOR_SEGURO;
+    let projecaoSeguroPendente = VALOR_SEGURO;
+    if (pagoSeguro) {
+      valorSeguroExibir = parseFloat(pagoSeguro.valor);
+      projecaoSeguroPendente = 0;
+    }
+
+    // AP (Financiamento - Exibe e calcula apenas a sua METADE / 50%)
+    let valorAPExibir = VALOR_TOTAL_AP / 2;
+    let projecaoAPPendente = VALOR_TOTAL_AP / 2;
+    if (pagoAP) {
+      valorAPExibir = parseFloat(pagoAP.valor) / 2;
+      projecaoAPPendente = 0;
+    }
+
+    // CONDOMÍNIO (Exibe e calcula apenas a sua METADE / 50%)
+    let valorCondominioExibir = VALOR_TOTAL_CONDOMINIO / 2;
+    let projecaoCondominioPendente = VALOR_TOTAL_CONDOMINIO / 2;
+    if (pagoCondominio) {
+      valorCondominioExibir = parseFloat(pagoCondominio.valor) / 2;
+      projecaoCondominioPendente = 0;
+    }
+
+    // 3. Atualiza os textos da Tabela de Resumo com tag de (Pago) ou (Pendente)
     atualizarElementoResumo('resumo-agua', valorAguaExibir, !!pagoAgua);
     atualizarElementoResumo('resumo-luz', valorLuzExibir, !!pagoLuz);
+    atualizarElementoResumo(
+      'resumo-internet',
+      valorInternetExibir,
+      pagamentosInternet.length > 0
+    );
+    atualizarElementoResumo(
+      'resumo-celular',
+      valorCelularExibir,
+      !!pagoCelular
+    );
+    atualizarElementoResumo('resumo-seguro', valorSeguroExibir, !!pagoSeguro);
+    atualizarElementoResumo('resumo-ap', valorAPExibir, !!pagoAP);
+    atualizarElementoResumo(
+      'resumo-condominio',
+      valorCondominioExibir,
+      !!pagoCondominio
+    );
 
     // 4. Cálculos Totais Sem Duplicação
     const totalFixosPendentes =
       projecaoAguaPendente +
       projecaoLuzPendente +
-      VALOR_INTERNET +
-      VALOR_SEGURO +
-      VALOR_AP;
+      projecaoInternetPendente +
+      projecaoCelularPendente +
+      projecaoSeguroPendente +
+      projecaoAPPendente +
+      projecaoCondominioPendente;
+
     const totalGastosGeral = totalFixosPendentes + totalCartao;
     const saldoRestante = SALARIO - totalGastosGeral;
 
@@ -182,14 +306,23 @@ async function carregarTransacoes() {
     if (elSaldo)
       elSaldo.innerText = `R$ ${saldoRestante.toFixed(2).replace('.', ',')}`;
 
-    // 6. Atualiza o Gráfico caso haja mudança
+    // 6. Atualiza o Gráfico caso haja mudança de valores ou de mês
     if (
       totalCartao !== ultimoTotalCartao ||
       mesSelecionado !== ultimoMesSelecionado
     ) {
       ultimoTotalCartao = totalCartao;
       ultimoMesSelecionado = mesSelecionado;
-      atualizarGrafico(totalCartao, valorAguaExibir, valorLuzExibir);
+      atualizarGrafico(
+        totalCartao,
+        valorAguaExibir,
+        valorLuzExibir,
+        valorInternetExibir,
+        valorCelularExibir,
+        valorSeguroExibir,
+        valorAPExibir,
+        valorCondominioExibir
+      );
     }
   } catch (error) {
     console.error('Erro ao carregar transações:', error);
@@ -202,14 +335,23 @@ function atualizarElementoResumo(idElemento, valor, isPago) {
 
   const tagStatus = isPago
     ? " <small style='color: #28a745; font-size: 11px;'>(Pago)</small>"
-    : " <small style='color: #888; font-size: 11px;'>(Estimado)</small>";
+    : " <small style='color: #888; font-size: 11px;'>(Pendente)</small>";
 
   el.innerHTML = `R$ ${valor.toFixed(2).replace('.', ',')}${tagStatus}`;
 }
 
 // --- GRÁFICO DINÂMICO ---
 
-function atualizarGrafico(totalCartao, valorAgua, valorLuz) {
+function atualizarGrafico(
+  totalCartao,
+  valorAgua,
+  valorLuz,
+  valorInternet,
+  valorCelular,
+  valorSeguro,
+  valorAP,
+  valorCondominio
+) {
   const ctx = document.getElementById('graficoGastos')?.getContext('2d');
   if (!ctx) return;
 
@@ -218,12 +360,14 @@ function atualizarGrafico(totalCartao, valorAgua, valorLuz) {
   const borderColor = isDarkMode ? '#202024' : '#ffffff';
 
   const valores = [
-    totalCartao, // Cartão + Pix
-    valorAgua, // Água (Estimada ou Paga)
-    valorLuz, // Luz (Estimada ou Paga)
-    VALOR_INTERNET, // Internet
-    VALOR_SEGURO, // Seguro
-    VALOR_AP, // AP + Condomínio
+    totalCartao,
+    valorAgua,
+    valorLuz,
+    valorInternet,
+    valorCelular,
+    valorSeguro,
+    valorAP,
+    valorCondominio,
   ];
 
   const labels = [
@@ -231,8 +375,10 @@ function atualizarGrafico(totalCartao, valorAgua, valorLuz) {
     'Água',
     'Luz',
     'Internet',
+    'Celular',
     'Seguro',
-    'AP + Condomínio',
+    'AP (Sua parte)',
+    'Condomínio (Sua parte)',
   ];
 
   const cores = [
@@ -240,8 +386,10 @@ function atualizarGrafico(totalCartao, valorAgua, valorLuz) {
     '#00bfff',
     '#ffcc00',
     '#ff6600',
+    '#20c997',
     '#28a745',
     '#6f42c1',
+    '#e83e8c',
   ];
 
   if (graficoInstancia) {

@@ -329,11 +329,17 @@ body.dark-mode .badge.picpay {
 .icon-cat.internet {
   color: #ff6600;
 }
+.icon-cat.celular {
+  color: #20c997;
+}
 .icon-cat.seguro {
   color: #28a745;
 }
 .icon-cat.ap {
   color: #6f42c1;
+}
+.icon-cat.condominio {
+  color: #e83e8c;
 }
 
 .chart-container {

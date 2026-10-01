@@ -1,8 +1,7 @@
-from datetime import datetime, timezone
+from datetime import datetime
 
 from flask import Flask, jsonify, render_template, request
 from flask_sqlalchemy import SQLAlchemy
-from openpyxl import load_workbook
 
 from parser_bancos import extrair_dados_notificacao
 
@@ -14,9 +13,6 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
 
-# --- CAMINHO DA SUA PLANILHA NO ONEDRIVE ---
-CAMINHO_EXCEL = "financas_onedrive.xlsx"
-
 
 # Função de auxílio para categorização automática
 def identificar_categoria(local):
@@ -26,8 +22,37 @@ def identificar_categoria(local):
         return "Água"
     elif "ENERGISA" in local_upper:
         return "Luz"
-    elif "CONDOMINIO" in local_upper:
+    elif (
+        "CONDOMINIO" in local_upper
+        or "AGF" in local_upper
+        or "GARANTIDORA" in local_upper
+    ):
         return "Condomínio"
+    elif (
+        "COLECIONADORES" in local_upper
+        or "ASSOCIACAO" in local_upper
+        or "SEGURO" in local_upper
+    ):
+        return "Seguro"
+    elif (
+        "DIGITAL NET" in local_upper
+        or "INTERNET" in local_upper
+        or "FIBRA" in local_upper
+    ):
+        return "Internet"
+    elif (
+        "CLARO" in local_upper
+        or "TIM" in local_upper
+        or "VIVO" in local_upper
+        or "CELULAR" in local_upper
+    ):
+        return "Celular"
+    elif (
+        "CAIXA" in local_upper
+        or "MATHEUS FERNANDES DE FIGUEIREDO" in local_upper
+        or "MATHEUS FERNANDES" in local_upper
+    ):
+        return "AP"
     else:
         return "Outros"
 
@@ -56,70 +81,43 @@ with app.app_context():
     db.create_all()
 
 
-MESES_PT = {
-    1: "Janeiro",
-    2: "Fevereiro",
-    3: "Março",
-    4: "Abril",
-    5: "Maio",
-    6: "Junho",
-    7: "Julho",
-    8: "Agosto",
-    9: "Setembro",
-    10: "Outubro",
-    11: "Novembro",
-    12: "Dezembro",
-}
-
-
-def salvar_no_excel_onedrive(banco, valor, local, data_hora_obj):
-    """
-    Insere a transação exatamente na estrutura da planilha do cartão.
-    """
-    try:
-        wb = load_workbook(CAMINHO_EXCEL)
-
-        # 1. Identifica a aba correspondente ao mês atual
-        nome_aba = MESES_PT[data_hora_obj.month]
-
-        if nome_aba in wb.sheetnames:
-            ws = wb[nome_aba]
-        else:
-            ws = wb.active
-
-        # 2. Formatações de valores
-        data_formatada = data_hora_obj.strftime("%d/%b").lower()  # Ex: 01/out
-        detalhamento = local
-        parcela = ""
-        forma_pagamento = banco
-
-        # 3. Encontra a próxima linha vazia a partir da linha 3
-        proxima_linha = 3
-        while ws[f"B{proxima_linha}"].value is not None:
-            proxima_linha += 1
-
-        # 4. Preenche as células nas colunas A até F
-        ws[f"A{proxima_linha}"] = data_formatada
-        ws[f"B{proxima_linha}"] = local
-        ws[f"C{proxima_linha}"] = detalhamento
-        ws[f"D{proxima_linha}"] = parcela
-        ws[f"E{proxima_linha}"] = forma_pagamento
-        ws[f"F{proxima_linha}"] = valor
-
-        wb.save(CAMINHO_EXCEL)
-        print(
-            f"[OneDrive] Inserido na aba '{nome_aba}', linha {proxima_linha}: R$ {valor} no {banco}"
-        )
-
-    except (OSError, FileNotFoundError, PermissionError) as e:
-        print(f"[Erro OneDrive] Falha ao escrever na planilha: {e}")
-
-
 @app.route("/")
 def index():
     return render_template("index.html")
 
 
+@app.route("/api/teste-notificacao", methods=["GET"])
+def teste_notificacao():
+    texto = request.args.get("texto", "")
+    banco = request.args.get("banco", "C6")
+
+    if not texto:
+        return (
+            jsonify(
+                {
+                    "erro": "Envie o texto na URL usando o parâmetro ?texto=",
+                    "exemplo": "/api/teste-notificacao?texto=Pix+enviado+no+valor+de+R$+50,00+para+João",
+                }
+            ),
+            400,
+        )
+
+    valor, local = extrair_dados_notificacao(texto, banco)
+    categoria = identificar_categoria(local)
+
+    return jsonify(
+        {
+            "status": "sucesso",
+            "texto_original": texto,
+            "banco": banco,
+            "valor_extraido": valor,
+            "local_extraido": local,
+            "categoria_identificada": categoria,
+        }
+    )
+
+
+# Rota Webhook (Notificações dos Bancos)
 @app.route("/api/webhook", methods=["GET", "POST"])
 def webhook():
     if request.method == "GET":
@@ -133,15 +131,16 @@ def webhook():
     if not texto:
         return jsonify({"erro": "Nenhum texto informado"}), 400
 
-    # Extrai o valor e local usando seu parser existente
+    # Extrai o valor e local usando o parser
     valor, local = extrair_dados_notificacao(texto, banco)
 
-    # Classifica se é Água (Guariroba), Luz (Energisa), etc.
+    # Classifica a categoria
     categoria = identificar_categoria(local)
 
-    data_hora_atual = datetime.now(timezone.utc)
+    # Usa a hora local do servidor
+    data_hora_atual = datetime.now()
 
-    # 1. Salva no banco SQLite local para o Dashboard web
+    # Salva apenas no banco SQLite local
     nova_transacao = Transacao(
         banco=banco,
         valor=valor,
@@ -152,14 +151,47 @@ def webhook():
     db.session.add(nova_transacao)
     db.session.commit()
 
-    # 2. Insere a nova linha na planilha do OneDrive
-    salvar_no_excel_onedrive(banco, valor, local, data_hora_atual)
-
     return jsonify({"status": "sucesso", "transacao": nova_transacao.to_dict()}), 201
 
 
-@app.route("/api/transacoes", methods=["GET"])
-def listar_transacoes():
+# Rota para Listagem e Lançamento Manual de Transações
+@app.route("/api/transacoes", methods=["GET", "POST"])
+def gerenciar_transacoes():
+    if request.method == "POST":
+        dados = request.get_json() or {}
+
+        local = dados.get("local", "Desconhecido")
+        valor = float(dados.get("valor", 0.0))
+        banco = dados.get("banco", "C6/PicPay")
+        categoria = dados.get("categoria") or identificar_categoria(local)
+
+        data_hora_str = dados.get("data_hora")
+        if data_hora_str:
+            try:
+                data_hora_obj = datetime.strptime(data_hora_str, "%d/%m/%Y %H:%M:%S")
+            except ValueError:
+                try:
+                    data_hora_obj = datetime.strptime(data_hora_str, "%d/%m/%Y %H:%M")
+                except ValueError:
+                    data_hora_obj = datetime.now()
+        else:
+            data_hora_obj = datetime.now()
+
+        nova_transacao = Transacao(
+            banco=banco,
+            valor=valor,
+            local=local,
+            categoria=categoria,
+            data_hora=data_hora_obj,
+        )
+        db.session.add(nova_transacao)
+        db.session.commit()
+
+        return jsonify(
+            {"status": "sucesso", "transacao": nova_transacao.to_dict()}
+        ), 201
+
+    # Método GET: Lista transações do mês selecionado
     mes_atual = datetime.now().strftime("%m")
     mes = request.args.get("mes", mes_atual)
 
@@ -171,6 +203,37 @@ def listar_transacoes():
     ]
 
     return jsonify(transacoes_filtradas)
+
+
+# Rota para Resumo Mensal de Categorias
+@app.route("/api/resumo", methods=["GET"])
+def resumo_mensal():
+    mes_atual = datetime.now().strftime("%m")
+    mes = request.args.get("mes", mes_atual)
+
+    transacoes = Transacao.query.all()
+    transacoes_mes = [
+        t for t in transacoes if t.data_hora.strftime("%m") == str(mes).zfill(2)
+    ]
+
+    totais = {
+        "AP": 0.0,
+        "Condomínio": 0.0,
+        "Água": 0.0,
+        "Luz": 0.0,
+        "Internet": 0.0,
+        "Celular": 0.0,
+        "Seguro": 0.0,
+        "Outros": 0.0,
+        "Total": 0.0,
+    }
+
+    for t in transacoes_mes:
+        cat = t.categoria if t.categoria in totais else "Outros"
+        totais[cat] += t.valor
+        totais["Total"] += t.valor
+
+    return jsonify(totais)
 
 
 if __name__ == "__main__":

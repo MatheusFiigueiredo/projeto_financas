@@ -12,10 +12,7 @@
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
     />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link
-      rel="stylesheet"
-      href="{{ url_for('static', filename='css/style.css') }}"
-    />
+    <link rel="stylesheet" href="../static/css/style.css" />
   </head>
   <body>
     <div class="container">
@@ -110,32 +107,48 @@
                     <td>
                       <i class="fa-solid fa-droplet icon-cat agua"></i> Água
                     </td>
-                    <td class="valor-td">R$ 115,00</td>
+                    <td id="resumo-agua" class="valor-td">R$ 0,00</td>
                   </tr>
                   <tr>
                     <td><i class="fa-solid fa-bolt icon-cat luz"></i> Luz</td>
-                    <td class="valor-td">R$ 115,00</td>
+                    <td id="resumo-luz" class="valor-td">R$ 0,00</td>
                   </tr>
                   <tr>
                     <td>
                       <i class="fa-solid fa-wifi icon-cat internet"></i>
                       Internet
                     </td>
-                    <td class="valor-td">R$ 139,51</td>
+                    <td id="resumo-internet" class="valor-td">R$ 0,00</td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <i
+                        class="fa-solid fa-mobile-screen-button icon-cat celular"
+                      ></i>
+                      Celular
+                    </td>
+                    <td id="resumo-celular" class="valor-td">R$ 0,00</td>
                   </tr>
                   <tr>
                     <td>
                       <i class="fa-solid fa-shield-halved icon-cat seguro"></i>
                       Seguro
                     </td>
-                    <td class="valor-td">R$ 302,90</td>
+                    <td id="resumo-seguro" class="valor-td">R$ 0,00</td>
                   </tr>
                   <tr>
                     <td>
-                      <i class="fa-solid fa-building icon-cat ap"></i> AP +
-                      Condomínio
+                      <i class="fa-solid fa-house icon-cat ap"></i> AP (50% -
+                      Sua parte)
                     </td>
-                    <td class="valor-td">R$ 542,57</td>
+                    <td id="resumo-ap" class="valor-td">R$ 0,00</td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <i class="fa-solid fa-building icon-cat condominio"></i>
+                      Condomínio (50% - Sua parte)
+                    </td>
+                    <td id="resumo-condominio" class="valor-td">R$ 0,00</td>
                   </tr>
                 </tbody>
               </table>
@@ -178,6 +191,6 @@
       </section>
     </div>
 
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="../static/js/main.js"></script>
   </body>
 </html>
