@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="pt-br">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Painel Financeiro Pessoal</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+  </head>
+  <body>
+    <div class="container">
+      <!-- Cabeçalho -->
+      <header class="header">
+        <div class="header-main">
+          <h1>Controle Financeiro</h1>
+          <div class="header-actions">
+            <!-- Seletor de Mês -->
+            <div class="select-mes-container">
+              <i class="fa-solid fa-calendar-days"></i>
+              <select id="seletor-mes" onchange="carregarTransacoes()">
+                <option value="01">Janeiro</option>
+                <option value="02">Fevereiro</option>
+                <option value="03">Março</option>
+                <option value="04">Abril</option>
+                <option value="05">Maio</option>
+                <option value="06">Junho</option>
+                <option value="07">Julho</option>
+                <option value="08">Agosto</option>
+                <option value="09">Setembro</option>
+                <option value="10">Outubro</option>
+                <option value="11">Novembro</option>
+                <option value="12">Dezembro</option>
+              </select>
+            </div>
+            <!-- Botão de Modo Escuro / Claro -->
+            <button
+              id="btn-theme"
+              class="theme-btn"
+              onclick="alternarTema()"
+              title="Alternar Tema"
+            >
+              <i class="fa-solid fa-moon"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Navegação por Abas -->
+        <nav class="nav-tabs">
+          <button class="tab-btn active" onclick="alternarAba('geral')">
+            Visão Geral
+          </button>
+          <button class="tab-btn" onclick="alternarAba('detalhes')">
+            Extrato
+          </button>
+        </nav>
+      </header>
+
+      <!-- ABA 1: VISÃO GERAL -->
+      <section id="aba-geral" class="tab-content active">
+        <div class="cards-summary">
+          <div class="card">
+            <h3><i class="fa-solid fa-wallet icon-card"></i> Salário Base</h3>
+            <p class="valor positivo">R$ 2.884,00</p>
+          </div>
+          <div class="card">
+            <h3>
+              <i class="fa-solid fa-receipt icon-card"></i> Total Fatura /
+              Gastos
+            </h3>
+            <p class="valor negativo" id="total-gastos">R$ 0,00</p>
+          </div>
+          <div class="card">
+            <h3>
+              <i class="fa-solid fa-piggy-bank icon-card"></i> Saldo Restante
+            </h3>
+            <p class="valor destaque" id="saldo-restante">R$ 2.884,00</p>
+          </div>
+        </div>
+
+        <div class="geral-grid">
+          <div class="card-table">
+            <h2>Resumo dos Gastos Fixos & Cartões</h2>
+            <div class="table-responsive">
+              <table class="data-table tabela-resumo">
+                <thead>
+                  <tr>
+                    <th>Categoria</th>
+                    <th>Valor Mensal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>
+                      <i class="fa-solid fa-credit-card icon-cat cartao"></i>
+                      Cartão + Pix
+                    </td>
+                    <td id="resumo-cartao" class="valor-td">R$ 0,00</td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <i class="fa-solid fa-droplet icon-cat agua"></i> Água
+                    </td>
+                    <td class="valor-td">R$ 115,00</td>
+                  </tr>
+                  <tr>
+                    <td><i class="fa-solid fa-bolt icon-cat luz"></i> Luz</td>
+                    <td class="valor-td">R$ 115,00</td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <i class="fa-solid fa-wifi icon-cat internet"></i>
+                      Internet
+                    </td>
+                    <td class="valor-td">R$ 139,51</td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <i class="fa-solid fa-shield-halved icon-cat seguro"></i>
+                      Seguro
+                    </td>
+                    <td class="valor-td">R$ 302,90</td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <i class="fa-solid fa-building icon-cat ap"></i> AP +
+                      Condomínio
+                    </td>
+                    <td class="valor-td">R$ 542,57</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card-chart">
+            <h2>Distribuição dos Gastos</h2>
+            <div class="chart-container">
+              <canvas id="graficoGastos"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ABA 2: GASTOS DETALHADOS -->
+      <section id="aba-detalhes" class="tab-content">
+        <div class="card-table">
+          <h2>Extrato do Mês</h2>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Data / Hora</th>
+                  <th>Local</th>
+                  <th>Banco</th>
+                  <th>Valor</th>
+                </tr>
+              </thead>
+              <tbody id="tabela-transacoes">
+                <tr>
+                  <td colspan="4" style="text-align: center">
+                    Carregando transações...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  </body>
+</html>
